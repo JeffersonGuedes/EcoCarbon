@@ -61,6 +61,13 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const addCompany = async (formData: FormData) => {
     try {
+      // CRÍTICO: Adicionar company_id para o backend
+      const profile = await apiService.getUserProfile();
+      if (profile.company_id) {
+        formData.append('company', profile.company_id.toString());
+        console.log('🏭 Company ID adicionado:', profile.company_id);
+      }
+      
       const newMicroCompany = await apiService.createMicroCompany(formData);
       const newCompany = mapMicroCompanyToCompany(newMicroCompany);
       setCompanies(prev => [...prev, newCompany]);

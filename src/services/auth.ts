@@ -11,10 +11,15 @@ export interface AuthTokens {
 }
 
 export interface UserProfile {
-  id: number;
-  username: string;
-  email?: string;
+  first_name: string;
+  last_name: string;
   company_id: number;
+  company: string;
+  is_admin?: boolean;
+  is_employee?: boolean;
+  can_write?: boolean;
+  role?: string;
+  permissions?: string[];
 }
 
 class AuthService {
@@ -90,26 +95,22 @@ class AuthService {
     return !!this.getAccessToken();
   }
 
-  // Mock user profile - você pode implementar um endpoint real para isso
   async getUserProfile(): Promise<UserProfile> {
-    // Por enquanto, retorna dados mock baseados no token
     if (!this.isAuthenticated()) {
       throw new Error('Usuário não autenticado');
     }
 
-    // Você pode implementar um endpoint /user/me/ na sua API
-    return {
-      id: 1,
-      username: 'usuario',
-      email: 'usuario@empresa.com',
-      company_id: 1, // Este valor deve vir da API real
-    };
+    try {
+      const profile = await apiService.getUserProfile();
+      return profile as UserProfile;
+    } catch (error) {
+      throw new Error('Falha ao obter perfil do usuário');
+    }
   }
 }
 
 export const authService = new AuthService();
 
-// Funções utilitárias para compatibilidade com código existente
 export const getAccessToken = () => authService.getAccessToken();
 export const getUserProfile = () => authService.getUserProfile();
 export const refreshAccessToken = () => authService.refreshAccessToken();

@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://192.168.3.30:8080/api/v1';
+import { UserProfile } from "./auth";
+
+const API_BASE_URL = 'http://192.168.4.8:8080/api/v1';
 
 interface ApiResponse<T> {
   count?: number;
@@ -22,13 +24,23 @@ class ApiService {
     const url = `${this.baseURL}${endpoint}`;
     const token = this.getAccessToken();
 
-    const defaultHeaders: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+    console.log(`🌐 makeRequest: ${options.method || 'GET'} ${url}`);
+
+    const defaultHeaders: HeadersInit = {};
+
+    // Só adicionar Content-Type se não for FormData
+    if (!(options.body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       defaultHeaders.Authorization = `Bearer ${token}`;
+      console.log('🔐 Token de autorização adicionado');
+    } else {
+      console.warn('⚠️ Nenhum token de autorização encontrado');
     }
+
+    console.log('📋 Headers:', defaultHeaders);
 
     const response = await fetch(url, {
       ...options,
@@ -38,12 +50,35 @@ class ApiService {
       },
     });
 
+    console.log(`📊 Response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      console.error(`❌ Erro HTTP ${response.status}:`);
+      
+      let errorData;
+      try {
+        errorData = await response.json();
+        console.error('💥 Dados do erro:', errorData);
+      } catch (jsonError) {
+        console.error('⚠️ Não foi possível fazer parse do erro JSON:', jsonError);
+        errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
+      }
+      
+      const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('🚨 Mensagem de erro final:', errorMessage);
+      
+      throw new Error(errorMessage);
     }
 
-    return response.json();
+    // Para DELETE, não tentar fazer parse do JSON se não há conteúdo
+    if (response.status === 204 || options.method === 'DELETE') {
+      console.log('✅ makeRequest: DELETE realizado com sucesso (sem conteúdo)');
+      return {} as T;
+    }
+
+    const result = await response.json();
+    console.log('✅ makeRequest: sucesso', result);
+    return result;
   }
 
   private getAccessToken(): string | null {
@@ -68,6 +103,11 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ refresh }),
     });
+  }
+
+  // User Profile
+  async getUserProfile() {
+    return this.makeRequest<UserProfile>('/user/me/');
   }
 
   // Companies
@@ -97,44 +137,88 @@ class ApiService {
 
   // Micro Companies
   async getMicroCompanies(companyId?: number) {
-    const query = companyId ? `?company=${companyId}` : '';
+    // Sempre verificar se o usuário está autenticado
+    if (!this.getAccessToken()) {
+      throw new Error('Usuário não autenticado');
+    }
+    
+    // Se um companyId for fornecido, usar ele; caso contrário, buscar o perfil do usuário
+    let targetCompanyId = companyId;
+    if (!targetCompanyId) {
+      const profile = await this.getUserProfile();
+      if (!profile.company_id) {
+        throw new Error('Usuário não possui empresa associada');
+      }
+      targetCompanyId = profile.company_id;
+    }
+    
+    // Log de auditoria
+    console.log(`API: Buscando micro-empresas da empresa ${targetCompanyId}`);
+    
+    const query = `?company=${targetCompanyId}`;
     return this.makeRequest<ApiResponse<MicroCompany>>(`/micro/${query}`);
   }
 
   async createMicroCompany(formData: FormData) {
-    const token = this.getAccessToken();
-    const response = await fetch(`${this.baseURL}/micro/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+    console.log('🌐 API: createMicroCompany iniciado');
+    console.log('📤 FormData recebido na API:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: [FILE] ${value.name} (${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`  ${key}: "${value}"`);
+      }
     }
 
-    return response.json();
+    try {
+      const result = await this.makeRequest<MicroCompany>('/micro/', {
+        method: 'POST',
+        body: formData,
+      });
+      console.log('✅ createMicroCompany: sucesso', result);
+      return result;
+    } catch (error) {
+      console.error('❌ createMicroCompany: erro', error);
+      throw error;
+    }
   }
 
   async updateMicroCompany(id: number, formData: FormData) {
-    const token = this.getAccessToken();
-    const response = await fetch(`${this.baseURL}/micro/${id}/`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+    console.log('🌐 API: updateMicroCompany iniciado para ID:', id);
+    console.log('📤 FormData recebido na API:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: [FILE] ${value.name} (${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`  ${key}: "${value}"`);
+      }
     }
 
-    return response.json();
+    try {
+      // Tentar primeiro com PATCH
+      console.log('🔄 Tentando com método PATCH...');
+      const result = await this.makeRequest<MicroCompany>(`/micro/${id}/`, {
+        method: 'PATCH',
+        body: formData,
+      });
+      console.log('✅ updateMicroCompany (PATCH): sucesso', result);
+      return result;
+    } catch (error) {
+      console.warn('⚠️ PATCH falhou, tentando PUT...', error);
+      try {
+        const result = await this.makeRequest<MicroCompany>(`/micro/${id}/`, {
+          method: 'PUT',
+          body: formData,
+        });
+        console.log('✅ updateMicroCompany (PUT): sucesso', result);
+        return result;
+      } catch (putError) {
+        console.error('❌ updateMicroCompany: ambos PATCH e PUT falharam');
+        console.error('Erro PATCH:', error);
+        console.error('Erro PUT:', putError);
+        throw putError;
+      }
+    }
   }
 
   async deleteMicroCompany(id: number) {
@@ -196,7 +280,6 @@ class ApiService {
 
 export const apiService = new ApiService();
 
-// Types based on the API documentation
 export interface Company {
   id: number;
   name: string;
@@ -208,7 +291,8 @@ export interface Company {
 export interface MicroCompany {
   id: number;
   name: string;
-  logo?: string;
+  logo?: string; // URL da imagem
+  logo_file?: File; // Para upload
   description?: string;
   company: number;
   created_at: string;

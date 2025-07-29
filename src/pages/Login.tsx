@@ -1,47 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, User, Lock } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
-import { authService } from '../services/auth';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.username.trim() || !formData.password.trim()) {
-      toast.error('Usuário e senha são obrigatórios');
-      return;
-    }
+  e.preventDefault();
+  
+  if (!formData.username.trim() || !formData.password.trim()) {
+    toast.error('Usuário e senha são obrigatórios');
+    return;
+  }
 
-    setIsLoading(true);
-    
-    try {
-      await authService.login(formData);
-      toast.success('Login realizado com sucesso!');
-      navigate('/companies');
-    } catch (error) {
-      console.error('Erro no login:', error);
-      toast.error('Usuário ou senha incorretos');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  setIsLoading(true);
+  
+  try {
+    await login(formData);
+    toast.success('Login realizado com sucesso!');
+    navigate('/companies');
+  } catch (error) {
+    toast.error('Credenciais inválidas');
+  } finally {
+    setIsLoading(false);
+  }
+  }
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-6">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex flex-col">
+      <header className="flex justify-between items-center p-4">
+        <div className="text-xl font-bold text-foreground">IaEco</div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsDark(!isDark)}
+          className="text-foreground"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </header>
+      
+      <div className="flex-1 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <CardTitle className="text-2xl font-bold text-foreground">IaEco</CardTitle>
           <p className="text-muted-foreground">Sistema de Gestão de Emissões de Carbono</p>
@@ -110,6 +128,7 @@ export default function Login() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

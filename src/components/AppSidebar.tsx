@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   Sidebar,
@@ -27,12 +28,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Upload", url: "/upload", icon: Upload },
-  { title: "Histórico", url: "/history", icon: History },
-  { title: "Notificações", url: "/notifications", icon: Bell },
-  { title: "Relatórios", url: "/reports", icon: FileText },
-  { title: "Administração", url: "/admin", icon: Settings },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiredPermission: null, allowedRoles: null },
+  { title: "Upload", url: "/upload", icon: Upload, requiredPermission: "write", allowedRoles: ["admin", "employee"] },
+  { title: "Histórico", url: "/history", icon: History, requiredPermission: "write", allowedRoles: null },
+  { title: "Notificações", url: "/notifications", icon: Bell, requiredPermission: null, allowedRoles: null },
+  { title: "Relatórios", url: "/reports", icon: FileText, requiredPermission: null, allowedRoles: null },
+  { title: "Administração", url: "/admin", icon: Settings, requiredPermission: "admin", allowedRoles: null },
 ];
 
 export function AppSidebar() {
@@ -40,8 +41,29 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedCompany, setSelectedCompany } = useCompany();
+  const { userPermission, userRole } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+
+  // Filtrar itens do menu baseado nas permissões e roles do usuário
+  const filteredMenuItems = menuItems.filter(item => {
+    // Se não tem restrição de permissão nem role, pode ver
+    if (!item.requiredPermission && !item.allowedRoles) return true;
+    
+    // Se o usuário tem permissão de admin, pode ver tudo
+    if (userPermission === 'admin') return true;
+    
+    // Se a página requer admin e o usuário não é admin, não mostrar
+    if (item.requiredPermission === 'admin') return false;
+    
+    // Se tem restrição de roles específicas, verificar se o usuário está na lista
+    if (item.allowedRoles && !item.allowedRoles.includes(userRole!)) return false;
+    
+    // Se a página requer write, verificar se o usuário tem write
+    if (item.requiredPermission === 'write') return userPermission === 'write';
+    
+    return true;
+  });
 
   const isActive = (path: string) => currentPath === path;
   const isExpanded = menuItems.some((i) => isActive(i.url));
@@ -104,7 +126,7 @@ export function AppSidebar() {
             <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {menuItems.map((item) => (
+                {filteredMenuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink to={item.url} end className={getNavCls}>
