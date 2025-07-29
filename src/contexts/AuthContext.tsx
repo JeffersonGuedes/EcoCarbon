@@ -10,9 +10,11 @@ interface AuthContextType {
   userPermission: UserPermission | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: { username: string; password: string }) => Promise<void>;
+  requiresPasswordChange: boolean;
+  login: (credentials: { username: string; password: string }) => Promise<{ requiresPasswordChange?: boolean }>;
   logout: () => void;
   refreshUserData: () => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userPermission, setUserPermission] = useState<UserPermission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   const determineUserRoleAndPermission = (profile: UserProfile): { role: UserRole; permission: UserPermission } => {
     // Admin tem todas as permissões
@@ -74,8 +77,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const login = async (credentials: { username: string; password: string }) => {
-    await authService.login(credentials);
+    const result = await authService.login(credentials);
     await refreshUserData();
+    
+    // Verificar se precisa trocar senha baseado na resposta da API
+    if (result.requires_password_change) {
+      setRequiresPasswordChange(true);
+      return { requiresPasswordChange: true };
+    }
+    
+    setRequiresPasswordChange(false);
+    return { requiresPasswordChange: false };
+  };
+
+  const changePassword = async (oldPassword: string, newPassword: string) => {
+    try {
+      console.log('🔄 Iniciando alteração de senha...');
+      await authService.changePassword(oldPassword, newPassword);
+      console.log('✅ Senha alterada com sucesso');
+      setRequiresPasswordChange(false);
+      await refreshUserData();
+    } catch (error: any) {
+      console.error('❌ Erro ao alterar senha:', error);
+      throw error;
+    }
   };
 
   const logout = () => {
@@ -96,9 +121,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       userPermission,
       isAuthenticated: !!user,
       isLoading,
+      requiresPasswordChange,
       login,
       logout,
-      refreshUserData
+      refreshUserData,
+      changePassword
     }}>
       {children}
     </AuthContext.Provider>

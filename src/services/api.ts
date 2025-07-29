@@ -59,12 +59,23 @@ class ApiService {
       try {
         errorData = await response.json();
         console.error('💥 Dados do erro:', errorData);
+        
+        // Log específico para erro 400 com detalhes de validação
+        if (response.status === 400) {
+          console.error('🔍 Erro 400 - Detalhes de validação:', {
+            url: url,
+            payload: options.body,
+            errors: errorData
+          });
+        }
       } catch (jsonError) {
         console.error('⚠️ Não foi possível fazer parse do erro JSON:', jsonError);
         errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
       }
       
-      const errorMessage = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      const errorMessage = errorData.detail || errorData.message || errorData.error || 
+                        (typeof errorData === 'object' ? JSON.stringify(errorData) : errorData) ||
+                        `HTTP ${response.status}: ${response.statusText}`;
       console.error('🚨 Mensagem de erro final:', errorMessage);
       
       throw new Error(errorMessage);
@@ -92,7 +103,7 @@ class ApiService {
 
   // Authentication
   async login(username: string, password: string) {
-    return this.makeRequest<{access: string, refresh: string}>('/token/', {
+    return this.makeRequest<{access: string, refresh: string}>('/auth_login/', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
@@ -102,6 +113,26 @@ class ApiService {
     return this.makeRequest<{access: string}>('/token/refresh/', {
       method: 'POST',
       body: JSON.stringify({ refresh }),
+    });
+  }
+
+  async requestPasswordReset(email: string) {
+    return this.makeRequest<{message: string}>('/auth_reset/', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async changePassword(oldPassword: string, newPassword: string) {
+    const payload = { 
+      old_password: oldPassword,
+      new_password: newPassword,
+      confirm_password: newPassword  // Campo obrigatório pelo serializer!
+    };
+    
+    return this.makeRequest<{message: string}>('/change_password/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 

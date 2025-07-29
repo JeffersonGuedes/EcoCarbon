@@ -8,6 +8,8 @@ export interface LoginCredentials {
 export interface AuthTokens {
   access: string;
   refresh: string;
+  requires_password_change?: boolean;
+  auth_login?: string;
 }
 
 export interface UserProfile {
@@ -105,6 +107,30 @@ class AuthService {
       return profile as UserProfile;
     } catch (error) {
       throw new Error('Falha ao obter perfil do usuário');
+    }
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    try {
+      await apiService.requestPasswordReset(email);
+    } catch (error) {
+      throw new Error('Falha ao solicitar redefinição de senha');
+    }
+  }
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    try {
+      await apiService.changePassword(oldPassword, newPassword);
+    } catch (error: any) {
+      console.error('Erro detalhado ao alterar senha:', error);
+      
+      if (error.message && error.message.includes('400')) {
+        throw new Error('Dados inválidos. Verifique se a senha atual está correta.');
+      } else if (error.message && error.message.includes('401')) {
+        throw new Error('Não autorizado. Faça login novamente.');
+      } else {
+        throw new Error('Falha ao alterar senha. Tente novamente.');
+      }
     }
   }
 }

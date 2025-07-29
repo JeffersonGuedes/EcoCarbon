@@ -6,7 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate  } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import { ConditionalLayout } from "./components/ConditionalLayout";
+import { PasswordProtectedRoute } from "./components/PasswordProtectedRoute";
 import Login from "./pages/Login";
+import ChangePassword from "./pages/ChangePassword";
 import CompanySelection from "./pages/CompanySelection";
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
@@ -30,13 +32,42 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Navigate to="/login" />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/companies" element={<CompanySelection />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/upload" element={<Upload />} />
-                <Route path="/history" element={<History />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/admin" element={<Administration />} />
+                <Route path="/change-password" element={<ChangePassword />} />
+                <Route path="/companies" element={
+                  <PasswordProtectedRoute>
+                    <CompanySelection />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/dashboard" element={
+                  <PasswordProtectedRoute>
+                    <Dashboard />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/upload" element={
+                  <PasswordProtectedRoute>
+                    <Upload />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/history" element={
+                  <PasswordProtectedRoute>
+                    <History />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/notifications" element={
+                  <PasswordProtectedRoute>
+                    <Notifications />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/reports" element={
+                  <PasswordProtectedRoute>
+                    <Reports />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/admin" element={
+                  <PasswordProtectedRoute>
+                    <Administration />
+                  </PasswordProtectedRoute>
+                } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ConditionalLayout>
