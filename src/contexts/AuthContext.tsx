@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (credentials: { username: string; password: string }) => Promise<{ requiresPasswordChange?: boolean }>;
   logout: () => void;
   refreshUserData: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   // Helper functions para acessar dados da empresa
   getCompanyId: () => number | null;
@@ -114,6 +115,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      console.log('🔄 Tentando renovar token...');
+      await authService.refreshAccessToken();
+      console.log('✅ Token renovado com sucesso');
+      return true;
+    } catch (error) {
+      console.log('❌ Falha ao renovar token:', error);
+      return false;
+    }
+  };
+
   const logout = () => {
     authService.logout();
     setUser(null);
@@ -142,6 +155,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       login,
       logout,
       refreshUserData,
+      refreshToken,
       changePassword,
       getCompanyId,
       getCompanyName,

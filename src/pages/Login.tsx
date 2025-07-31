@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Eye, EyeOff, User, Lock, Moon, Sun, Mail } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/auth';
@@ -20,9 +19,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDark, setIsDark] = useState(true);
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
@@ -54,40 +50,6 @@ export default function Login() {
     setIsLoading(false);
   }
   }
-
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!resetEmail.trim()) {
-      toast.error('Email é obrigatório');
-      return;
-    }
-
-    // Validação básica de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(resetEmail)) {
-      toast.error('Email inválido');
-      return;
-    }
-
-    setIsResetting(true);
-    
-    try {
-      await authService.requestPasswordReset(resetEmail);
-      toast.success('Nova senha foi enviada para seu email!');
-      setIsResetModalOpen(false);
-      setResetEmail('');
-    } catch (error: any) {
-      console.error('Erro ao resetar senha:', error);
-      if (error.message) {
-        toast.error(error.message);
-      } else {
-        toast.error('Erro ao enviar email de recuperação. Tente novamente.');
-      }
-    } finally {
-      setIsResetting(false);
-    }
-  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex flex-col">
@@ -163,61 +125,12 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center">
-            <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="link"
-                  className="text-muted-foreground"
-                >
-                  Esqueci minha senha
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Recuperar Senha</DialogTitle>
-                  <DialogDescription>
-                    Digite seu email para receber as instruções de recuperação de senha.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handlePasswordReset} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="reset-email"
-                        type="email"
-                        placeholder="Digite seu email"
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                        className="pl-10"
-                        disabled={isResetting}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsResetModalOpen(false);
-                        setResetEmail('');
-                      }}
-                      disabled={isResetting}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isResetting}
-                    >
-                      {isResetting ? 'Enviando...' : 'Enviar'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Link 
+              to="/forgot-password"
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              Esqueci minha senha
+            </Link>
           </div>
         </CardContent>
       </Card>

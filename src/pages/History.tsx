@@ -1,130 +1,158 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { File, Eye, Download, Calendar } from 'lucide-react';
+import { File, Eye, Download, Calendar, RefreshCw } from 'lucide-react';
+import { apiService } from '@/services/api';
+import { useCompany } from '@/contexts/CompanyContext';
+import { toast } from 'sonner';
 
 interface HistoryItem {
   id: string;
-  filename: string;
-  type: 'csv' | 'pdf' | 'xlsx' | 'image';
-  uploadDate: string;
-  status: 'processing' | 'completed' | 'error';
-  result?: string;
-  fileSize: string;
+  action: string;
+  description: string;
+  user_name: string;
+  company_id: number;
+  document_id?: number;
+  timestamp: string;
+  created_at?: string;
 }
 
-const historyData: HistoryItem[] = [
-  {
-    id: '1',
-    filename: 'inventario_2024.csv',
-    type: 'csv',
-    uploadDate: '15/03/2024',
-    status: 'completed',
-    result: '145.2 tCO2e',
-    fileSize: '2.5 MB'
-  },
-  {
-    id: '2',
-    filename: 'inventario_2023.csv',
-    type: 'csv',
-    uploadDate: '20/12/2023',
-    status: 'error',
-    fileSize: '1.8 MB'
-  },
-  {
-    id: '3',
-    filename: 'dados_energia.xlsx',
-    type: 'xlsx',
-    uploadDate: '10/03/2024',
-    status: 'processing',
-    fileSize: '3.2 MB'
-  },
-  {
-    id: '4',
-    filename: 'relatorio_transporte.pdf',
-    type: 'pdf',
-    uploadDate: '05/03/2024',
-    status: 'completed',
-    result: '67.8 tCO2e',
-    fileSize: '4.1 MB'
-  }
-];
-
 export default function History() {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge className="bg-success text-success-foreground">Concluído</Badge>;
-      case 'processing':
-        return <Badge className="bg-warning text-warning-foreground">Processando</Badge>;
-      case 'error':
-        return <Badge variant="destructive">Erro</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+  const { selectedCompany } = useCompany();
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadHistory = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiService.getHistory();
+      
+      // Filtrar por empresa selecionada se necessário
+      let data = response.results || [];
+      if (selectedCompany) {
+        data = data.filter((item: HistoryItem) => item.company_id === selectedCompany.id);
+      }
+      
+      setHistoryData(data);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      toast.error('Erro ao carregar histórico');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getFileIcon = (type: string) => {
-    return <File className="h-4 w-4 text-muted-foreground" />;
+  useEffect(() => {
+    loadHistory();
+  }, [selectedCompany]);
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case 'UPLOAD_DOCUMENT':
+        return <Badge variant="secondary">Upload</Badge>;
+      case 'CREATE_USER':
+        return <Badge variant="default">Usuário</Badge>;
+      case 'UPDATE_USER':
+        return <Badge variant="outline">Atualização</Badge>;
+      case 'DELETE_USER':
+        return <Badge variant="destructive">Exclusão</Badge>;
+      default:
+        return <Badge variant="secondary">{action}</Badge>;
+    }
   };
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-foreground">
-            <Calendar className="h-5 w-5" />
-            Histórico de Uploads
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-foreground">Histórico de Atividades</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={loadHistory}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border">
+          {selectedCompany && (
+            <div className="mb-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Mostrando atividades para: <span className="font-medium text-foreground">{selectedCompany.name}</span>
+              </p>
+            </div>
+          )}
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2">Carregando histórico...</span>
+            </div>
+          ) : historyData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma atividade encontrada</p>
+            </div>
+          ) : (
             <Table>
               <TableHeader>
-                <TableRow className="border-border">
-                  <TableHead className="text-muted-foreground">Arquivo</TableHead>
-                  <TableHead className="text-muted-foreground">Pré-visualização</TableHead>
-                  <TableHead className="text-muted-foreground">Enviado por</TableHead>
-                  <TableHead className="text-muted-foreground">Data</TableHead>
-                  <TableHead className="text-muted-foreground">Status</TableHead>
-                  <TableHead className="text-muted-foreground">Resultado</TableHead>
-                  <TableHead className="text-muted-foreground">Ações</TableHead>
+                <TableRow>
+                  <TableHead>Ação</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Documento</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {historyData.map((item) => (
-                  <TableRow key={item.id} className="border-border">
+                  <TableRow key={item.id}>
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        {getFileIcon(item.type)}
-                        <div>
-                          <p className="font-medium text-foreground">{item.filename}</p>
-                          <p className="text-sm text-muted-foreground">{item.fileSize}</p>
+                      {getActionBadge(item.action)}
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-medium text-foreground">{item.description}</p>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.user_name}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(item.timestamp || item.created_at || '')}
+                    </TableCell>
+                    <TableCell>
+                      {item.document_id ? (
+                        <div className="flex items-center gap-2">
+                          <File className="h-4 w-4" />
+                          <span className="text-sm">ID: {item.document_id}</span>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">-</TableCell>
-                    <TableCell className="text-muted-foreground">{item.uploadDate}</TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell className="text-foreground font-medium">
-                      {item.result || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" disabled={item.status !== 'completed'}>
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

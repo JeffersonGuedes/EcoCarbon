@@ -2,14 +2,15 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDropzone } from 'react-dropzone';
-import { Cloud, Upload as UploadIcon, File, Camera, QrCode, AlertCircle, CheckCircle } from 'lucide-react';
+import { Cloud, Upload as UploadIcon, File, Camera, QrCode, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiService } from '@/services/api';
-import { useSecurityCheck } from '@/hooks/useSecurityCheck';
 
 interface UploadedFile {
   file: File;
@@ -21,7 +22,6 @@ interface UploadedFile {
 
 export default function Upload() {
   const { user } = useAuth();
-  const { secureApiCall, checkUserIntegrity } = useSecurityCheck();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [documentType, setDocumentType] = useState<string>('');
@@ -58,12 +58,6 @@ export default function Upload() {
     let progressInterval: NodeJS.Timeout | null = null;
     
     try {
-      // 🔒 Verificação de segurança inicial
-      const userValid = await checkUserIntegrity();
-      if (!userValid) {
-        throw new Error('Falha na verificação de segurança do usuário');
-      }
-
       if (!user?.company_id) {
         throw new Error('Usuário não possui empresa associada');
       }
@@ -94,23 +88,15 @@ export default function Upload() {
         ));
       }, 300);
 
-      // 🔒 Upload seguro do documento
-      const uploadedDocument = await secureApiCall(() => apiService.uploadDocument(formData));
+      // Upload do documento
+      const uploadedDocument = await apiService.uploadDocument(formData);
       
-      if (!uploadedDocument) {
-        throw new Error('Falha no upload devido a problema de autenticação');
-      }
-      
-      // 🔒 Obter micro companies com chamada segura
-      const microCompanies = await secureApiCall(() => apiService.getMicroCompanies(user.company_id));
-      
-      if (!microCompanies) {
-        throw new Error('Falha ao obter micro empresas devido a problema de autenticação');
-      }
+      // Obter micro companies da empresa do usuário
+      const microCompanies = await apiService.getMicroCompanies(user.company_id);
       
       // Vincular com a primeira micro empresa (ou todas, dependendo da lógica de negócio)
       if (microCompanies.results && microCompanies.results.length > 0) {
-        await secureApiCall(() => apiService.linkDocumentToMicroCompany(uploadedDocument.id, microCompanies.results[0].id));
+        await apiService.linkDocumentToMicroCompany(uploadedDocument.id, microCompanies.results[0].id);
       }
 
       // ✅ Upload concluído com sucesso

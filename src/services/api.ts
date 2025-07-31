@@ -116,6 +116,13 @@ class ApiService {
     });
   }
 
+  async verifyToken(token: string) {
+    return this.makeRequest<{valid: boolean}>('/token/verify/', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
+
   async requestPasswordReset(email: string) {
     return this.makeRequest<{message: string}>('/auth_reset/', {
       method: 'POST',
@@ -276,21 +283,51 @@ class ApiService {
 
   // Documents
   async uploadDocument(formData: FormData) {
-    const token = this.getAccessToken();
-    const response = await fetch(`${this.baseURL}/documents/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    try {
+      console.log('📤 Iniciando upload de documento...');
+      
+      // Log dos dados sendo enviados
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: [FILE] ${value.name} (${value.size} bytes, ${value.type})`);
+        } else {
+          console.log(`  ${key}: "${value}"`);
+        }
+      }
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      const response = await fetch(`${this.baseURL}/documents/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          // NÃO adicione Content-Type para multipart/form-data
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Upload realizado com sucesso:', result);
+        return result;
+      } else {
+        const error = await response.json();
+        console.error('❌ Erro no upload:', error);
+        throw new Error(JSON.stringify(error));
+      }
+    } catch (error) {
+      console.error('❌ Erro de rede:', error);
+      throw error;
     }
+  }
 
-    return response.json();
+  async linkDocumentToMicroCompany(documentId: number, microCompanyId: number) {
+    console.log(`🔗 Vinculando documento ${documentId} à micro empresa ${microCompanyId}`);
+    return this.makeRequest(`/micro-documents/`, {
+      method: 'POST',
+      body: JSON.stringify({
+        document: documentId,
+        micro_company: microCompanyId
+      }),
+    });
   }
 
   async getDocuments() {
@@ -299,6 +336,60 @@ class ApiService {
 
   async getDocumentStatus(id: number) {
     return this.makeRequest<Document>(`/documents/${id}/status/`);
+  }
+
+  // History
+  async addToHistory(action: string, description: string, documentId?: number) {
+    const profile = await this.getUserProfile();
+    const payload = {
+      action,
+      description,
+      user_name: `${profile.first_name} ${profile.last_name}`,
+      company_id: profile.company_id,
+      document_id: documentId,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📝 Adicionando ao histórico:', payload);
+    return this.makeRequest('/history/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getHistory() {
+    return this.makeRequest<ApiResponse<any>>('/history/');
+  }
+
+  // Notifications
+  async addNotification(type: 'success' | 'error' | 'info', title: string, message: string) {
+    const profile = await this.getUserProfile();
+    const payload = {
+      type,
+      title,
+      message,
+      user_name: `${profile.first_name} ${profile.last_name}`,
+      company_id: profile.company_id,
+      timestamp: new Date().toISOString(),
+      is_read: false
+    };
+    
+    console.log('🔔 Adicionando notificação:', payload);
+    return this.makeRequest('/notifications/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getNotifications() {
+    return this.makeRequest<ApiResponse<any>>('/notifications/');
+  }
+
+  async markNotificationAsRead(id: number) {
+    return this.makeRequest(`/notifications/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_read: true }),
+    });
   }
 
   // Dashboard
@@ -509,6 +600,36 @@ export interface Document {
   uploaded_by: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface MicroDocument {
+  id: number;
+  document: number;
+  micro_company: number;
+  created_at: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  action: string;
+  description: string;
+  user_name: string;
+  company_id: number;
+  document_id?: number;
+  timestamp: string;
+  created_at: string;
+}
+
+export interface NotificationEntry {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  title: string;
+  message: string;
+  user_name: string;
+  company_id: number;
+  timestamp: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface Emission {

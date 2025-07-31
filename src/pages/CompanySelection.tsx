@@ -135,7 +135,7 @@ export default function CompanySelection() {
               <Button
                 variant="outline"
                 onClick={() => navigate('/admin')}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hidden"
               >
                 <Users className="h-4 w-4" />
                 Configurar Funcionários

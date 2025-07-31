@@ -20,6 +20,7 @@ interface CompanyContextType {
   updateCompany: (id: number, formData: FormData) => Promise<void>;
   removeCompany: (id: number) => Promise<void>;
   refreshCompanies: () => Promise<void>;
+  validateCompanyAccess: (companyId: number) => Promise<boolean>;
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -125,6 +126,30 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  const validateCompanyAccess = async (companyId: number): Promise<boolean> => {
+    if (!user) return false;
+    
+    // Verificar se o usuário tem acesso à empresa especificada
+    const userCompanyId = user.company_id;
+    
+    // Se é admin da empresa, pode acessar todas as micro-empresas da empresa
+    if (user.company_role === 'company_admin') {
+      // Verificar se a micro-empresa pertence à empresa do usuário
+      try {
+        const response = await apiService.getMicroCompanies();
+        const microCompanies = response.results || [];
+        const company = microCompanies.find(mc => mc.id === companyId);
+        return company ? company.company === userCompanyId : false;
+      } catch (error) {
+        console.error('Erro ao validar acesso à empresa:', error);
+        return false;
+      }
+    }
+    
+    // Para outros usuários, verificar se têm acesso específico à micro-empresa
+    return companies.some(company => company.id === companyId);
+  };
+
   useEffect(() => {
     // Aguardar autenticação estar completa antes de carregar empresas
     if (!authLoading && isAuthenticated && user) {
@@ -142,7 +167,8 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
       addCompany,
       updateCompany,
       removeCompany,
-      refreshCompanies
+      refreshCompanies,
+      validateCompanyAccess
     }}>
       {children}
     </CompanyContext.Provider>
