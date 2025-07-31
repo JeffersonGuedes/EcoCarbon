@@ -1,6 +1,6 @@
 import { UserProfile } from "./auth";
 
-const API_BASE_URL = 'http://192.168.4.8:8080/api/v1';
+const API_BASE_URL = 'http://192.168.3.30:8080/api/v1';
 
 interface ApiResponse<T> {
   count?: number;
@@ -142,8 +142,24 @@ class ApiService {
   }
 
   // Companies
-  async getCompanies() {
+  async getCompanies(companyId?: number) {
+    // Se um companyId específico for fornecido, buscar apenas essa empresa
+    if (companyId) {
+      return this.makeRequest<Company>(`/companies/${companyId}/`);
+    }
+    
+    // Caso contrário, buscar todas as empresas (para super admins) ou filtrar pela empresa do usuário
     return this.makeRequest<ApiResponse<Company>>('/companies/');
+  }
+
+  async getCompaniesByUser() {
+    // Buscar as empresas associadas ao usuário logado
+    const profile = await this.getUserProfile();
+    if (profile.company_id) {
+      const company = await this.getCompanies(profile.company_id);
+      return { results: [company] as Company[] };
+    }
+    return { results: [] as Company[] };
   }
 
   async createCompany(company: Partial<Company>) {
@@ -307,6 +323,159 @@ class ApiService {
   async getScopes() {
     return this.makeRequest<ApiResponse<Scope>>('/scopes/');
   }
+
+  // User Management
+  async getUsers(companyId?: number) {
+    // Se um companyId for fornecido, filtrar usuários por empresa
+    if (companyId) {
+      const query = `?company=${companyId}`;
+      return this.makeRequest<ApiResponse<UserList>>(`/users/${query}`);
+    }
+    
+    return this.makeRequest<ApiResponse<UserList>>('/users/');
+  }
+
+  async getUsersByCompany() {
+    // Buscar usuários da empresa do usuário logado
+    const profile = await this.getUserProfile();
+    if (profile.company_id) {
+      return this.getUsers(profile.company_id);
+    }
+    return { results: [] };
+  }
+
+  async getUsersByUserRoles() {
+    // Buscar usuários através do endpoint user-roles e depois buscar dados completos
+    const profile = await this.getUserProfile();
+    if (profile.company_id) {
+      const query = `?company=${profile.company_id}`;
+      const userRolesResponse = await this.makeRequest<ApiResponse<CompanyUserRole>>(`/user-roles/${query}`);
+      
+      const userRoles = userRolesResponse.results || [];
+      
+      if (userRoles.length === 0) {
+        return { results: [] };
+      }
+      
+      // Extrair IDs únicos dos usuários
+      const userIds = [...new Set(userRoles.map(ur => ur.user))];
+      
+      // Buscar dados completos de cada usuário
+      const usersPromises = userIds.map(id => this.getUserById(id));
+      const users = await Promise.all(usersPromises);
+      
+      // Mapear os roles para cada usuário
+      const usersWithRoles = users.map(user => {
+        const userRolesForUser = userRoles.filter(ur => ur.user === user.id);
+        return {
+          ...user,
+          company_roles: userRolesForUser
+        };
+      });
+      
+      return { results: usersWithRoles };
+    }
+    return { results: [] };
+  }
+
+  async getUserById(id: number) {
+    return this.makeRequest<UserList>(`/users/${id}/`);
+  }
+
+  async createUser(userData: UserCreate) {
+    return this.makeRequest<UserCreate>('/users/', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(id: number, userData: Partial<UserUpdate>) {
+    return this.makeRequest<UserUpdate>(`/users/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async partialUpdateUser(id: number, userData: Partial<UserUpdate>) {
+    return this.makeRequest<UserUpdate>(`/users/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(id: number) {
+    return this.makeRequest(`/users/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async resetUserPassword(id: number) {
+    return this.makeRequest<UserList>(`/users/${id}/reset_password/`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  async toggleUserActive(id: number) {
+    return this.makeRequest<UserList>(`/users/${id}/toggle_active/`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  // User Roles Management
+  async getUserRoles(companyId?: number) {
+    // Se um companyId for fornecido, filtrar user-roles por empresa
+    if (companyId) {
+      const query = `?company=${companyId}`;
+      return this.makeRequest<ApiResponse<CompanyUserRole>>(`/user-roles/${query}`);
+    }
+    
+    return this.makeRequest<ApiResponse<CompanyUserRole>>('/user-roles/');
+  }
+
+  async getUserRolesByCompany() {
+    // Buscar user-roles da empresa do usuário logado
+    const profile = await this.getUserProfile();
+    if (profile.company_id) {
+      return this.getUserRoles(profile.company_id);
+    }
+    return { results: [] };
+  }
+
+  async createUserRole(roleData: Partial<CompanyUserRole>) {
+    return this.makeRequest<CompanyUserRole>('/user-roles/', {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  async assignRole(roleData: Partial<CompanyUserRole>) {
+    return this.makeRequest<CompanyUserRole>('/user-roles/assign_role/', {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  async updateUserRole(id: number, roleData: Partial<CompanyUserRole>) {
+    return this.makeRequest<CompanyUserRole>(`/user-roles/${id}/`, {
+      method: 'PUT',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  async updateUserRoleByUserRole(userRoleId: number, userData: { user: number; company: number; role: string }) {
+    return this.makeRequest<CompanyUserRole>(`/user-roles/${userRoleId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUserRole(id: number) {
+    return this.makeRequest(`/user-roles/${id}/`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiService = new ApiService();
@@ -372,4 +541,59 @@ export interface Scope {
   name: string;
   number_scope: 1 | 2 | 3;
   created_at: string;
+}
+
+// User management interfaces
+export interface CompanyUserRole {
+  id: number;
+  user: number;
+  company: number;
+  role: 'company_admin' | 'employee' | 'client';
+  user_name: string;
+  user_email: string;
+  company_name: string;
+  role_display: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserList {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  cpf: string;
+  is_active: boolean;
+  companies: string[];
+  company_roles: CompanyUserRole[];
+  date_joined: string;
+  last_login: string | null;
+}
+
+export interface UserCreate {
+  username: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  cpf: string;
+  password: string;
+  confirm_password: string;
+  company_role: string;
+  company_id?: number;
+  is_active?: boolean;
+}
+
+export interface UserUpdate {
+  id?: number;
+  username?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  cpf?: string;
+  is_active?: boolean;
+  company_role?: string;
+  company_roles?: CompanyUserRole[];
+  date_joined?: string;
+  last_login?: string | null;
 }

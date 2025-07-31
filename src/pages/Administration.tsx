@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,7 @@ const initialUsers: User[] = [
 ];
 
 export default function Administration() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState(initialUsers);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -119,6 +121,21 @@ export default function Administration() {
 
   return (
     <div className="space-y-6">
+      {/* Header com navegação para gerenciamento de usuários */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Administração</h1>
+          <p className="text-gray-600">Configurações e gerenciamento do sistema</p>
+        </div>
+        <Button 
+          onClick={() => navigate('/users')}
+          className="flex items-center gap-2"
+        >
+          <Users className="h-4 w-4" />
+          Gerenciar Usuários
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

@@ -17,6 +17,7 @@ export interface UserProfile {
   last_name: string;
   company_id: number;
   company: string;
+  company_role: 'company_admin' | 'employee' | 'client';
   is_admin?: boolean;
   is_employee?: boolean;
   can_write?: boolean;

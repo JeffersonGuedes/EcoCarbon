@@ -37,7 +37,7 @@ export function Layout({ children }: LayoutProps) {
                     {location.pathname === '/notifications' && 'Notificações'}
                     {location.pathname === '/reports' && 'Relatórios'}
                     {location.pathname === '/admin' && 'Administração'}
-                    {location.pathname === '/' && 'Configuração Geral'}
+                    {location.pathname === '/admin' && 'Configuração Geral'}
                     {location.pathname === '/companies' && 'Selecionar Empresa'}
                   </h1>
                 </div>

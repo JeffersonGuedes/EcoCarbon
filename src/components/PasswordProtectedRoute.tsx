@@ -16,7 +16,6 @@ export const PasswordProtectedRoute: React.FC<PasswordProtectedRouteProps> = ({ 
     }
   }, [isAuthenticated, requiresPasswordChange, navigate]);
 
-  // Se precisa trocar senha, não renderiza nada (vai redirecionar)
   if (requiresPasswordChange) {
     return null;
   }

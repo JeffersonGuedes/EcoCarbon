@@ -15,6 +15,11 @@ interface AuthContextType {
   logout: () => void;
   refreshUserData: () => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+  // Helper functions para acessar dados da empresa
+  getCompanyId: () => number | null;
+  getCompanyName: () => string | null;
+  getCompanyRole: () => string | null;
+  isCompanyAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,17 +40,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   const determineUserRoleAndPermission = (profile: UserProfile): { role: UserRole; permission: UserPermission } => {
-    // Admin tem todas as permissões
-    if (profile.is_admin || profile.role === 'admin') {
-      return { role: 'admin', permission: 'admin' };
-    } 
-    // Employee sempre tem permissão write (pode fazer upload)
-    else if (profile.is_employee || profile.role === 'employee') {
-      return { role: 'employee', permission: 'write' };
-    } 
-    // Client só tem permissão read
-    else {
-      return { role: 'client', permission: 'read' };
+    // Usar o company_role retornado pela API
+    switch (profile.company_role) {
+      case 'company_admin':
+        return { role: 'admin', permission: 'admin' };
+      case 'employee':
+        return { role: 'employee', permission: 'write' };
+      case 'client':
+        return { role: 'client', permission: 'read' };
+      default:
+        // Fallback para o sistema antigo se company_role não estiver definido
+        if (profile.is_admin || profile.role === 'admin') {
+          return { role: 'admin', permission: 'admin' };
+        } else if (profile.is_employee || profile.role === 'employee') {
+          return { role: 'employee', permission: 'write' };
+        } else {
+          return { role: 'client', permission: 'read' };
+        }
     }
   };
 
@@ -110,6 +121,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUserPermission(null);
   };
 
+  // Helper functions para acessar dados da empresa
+  const getCompanyId = () => user?.company_id || null;
+  const getCompanyName = () => user?.company || null;
+  const getCompanyRole = () => user?.company_role || null;
+  const isCompanyAdmin = () => user?.company_role === 'company_admin';
+
   useEffect(() => {
     refreshUserData();
   }, []);
@@ -125,7 +142,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       login,
       logout,
       refreshUserData,
-      changePassword
+      changePassword,
+      getCompanyId,
+      getCompanyName,
+      getCompanyRole,
+      isCompanyAdmin
     }}>
       {children}
     </AuthContext.Provider>

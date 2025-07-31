@@ -16,6 +16,7 @@ import History from "./pages/History";
 import Notifications from "./pages/Notifications";
 import Reports from "./pages/Reports";
 import Administration from "./pages/Administration";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,11 @@ const App = () => (
                 <Route path="/admin" element={
                   <PasswordProtectedRoute>
                     <Administration />
+                  </PasswordProtectedRoute>
+                } />
+                <Route path="/users" element={
+                  <PasswordProtectedRoute>
+                    <UserManagement />
                   </PasswordProtectedRoute>
                 } />
                 <Route path="*" element={<NotFound />} />

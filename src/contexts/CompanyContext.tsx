@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService, MicroCompany } from '../services/api';
 import { authService } from '../services/auth';
+import { useAuth } from './AuthContext';
 import { toast } from "sonner";
 
 export interface Company {
@@ -32,6 +33,7 @@ export const useCompany = () => {
 };
 
 export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,15 +46,20 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
   });
 
   const refreshCompanies = async () => {
-    if (!authService.isAuthenticated()) return;
+    if (!isAuthenticated || !user) {
+      console.log('🔒 Usuário não autenticado ou dados não carregados ainda');
+      return;
+    }
 
     setIsLoading(true);
     try {
+      console.log('🔄 Carregando micro-empresas...');
       const response = await apiService.getMicroCompanies();
       const mappedCompanies = response.results?.map(mapMicroCompanyToCompany) || [];
       setCompanies(mappedCompanies);
+      console.log('✅ Micro-empresas carregadas:', mappedCompanies.length);
     } catch (error) {
-      console.error('Erro ao carregar empresas:', error);
+      console.error('❌ Erro ao carregar empresas:', error);
       toast.error('Erro ao carregar empresas');
     } finally {
       setIsLoading(false);
@@ -119,10 +126,12 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   useEffect(() => {
-    if (authService.isAuthenticated()) {
+    // Aguardar autenticação estar completa antes de carregar empresas
+    if (!authLoading && isAuthenticated && user) {
+      console.log('🚀 Auth completo, carregando empresas...');
       refreshCompanies();
     }
-  }, []);
+  }, [authLoading, isAuthenticated, user]);
 
   return (
     <CompanyContext.Provider value={{

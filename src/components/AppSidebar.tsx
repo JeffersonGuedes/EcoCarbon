@@ -8,11 +8,50 @@ import {
   Settings,
   ArrowLeft,
   Building,
-  Home
+  Home,
+  User
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Componente para mostrar o logo com fallback
+interface CompanyLogoProps {
+  logoUrl?: string;
+  companyName: string;
+  size?: 'sm' | 'md';
+}
+
+const CompanyLogo: React.FC<CompanyLogoProps> = ({ logoUrl, companyName, size = 'md' }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  const sizeClasses = {
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8'
+  };
+  
+  const iconSizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5'
+  };
+
+  if (!logoUrl || imageError) {
+    return (
+      <div className={`${sizeClasses[size]} bg-blue-100 rounded flex items-center justify-center`}>
+        <Building className={`${iconSizeClasses[size]} text-blue-600`} />
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={logoUrl} 
+      alt={`${companyName} logo`}
+      className={`${sizeClasses[size]} object-contain rounded`}
+      onError={() => setImageError(true)}
+    />
+  );
+};
 
 import {
   Sidebar,
@@ -33,7 +72,7 @@ const menuItems = [
   { title: "Histórico", url: "/history", icon: History, requiredPermission: "write", allowedRoles: null },
   { title: "Notificações", url: "/notifications", icon: Bell, requiredPermission: null, allowedRoles: null },
   { title: "Relatórios", url: "/reports", icon: FileText, requiredPermission: null, allowedRoles: null },
-  { title: "Administração", url: "/admin", icon: Settings, requiredPermission: "admin", allowedRoles: null },
+  { title: "Usuários", url: "/users", icon: User, requiredPermission: "admin", allowedRoles: ["admin"] },
 ];
 
 export function AppSidebar() {
@@ -90,7 +129,11 @@ export function AppSidebar() {
               <span className="text-sm">Voltar para empresas</span>
             </button>
             <div className="flex items-center gap-3">
-              <div className="text-2xl">{selectedCompany.logo}</div>
+              <CompanyLogo 
+                logoUrl={selectedCompany?.logo} 
+                companyName={selectedCompany?.name || ''} 
+                size="md" 
+              />
               <div>
                 <h2 className="font-semibold text-sidebar-foreground">{selectedCompany.name}</h2>
                 <p className="text-xs text-sidebar-foreground/70">IAEC Carbon</p>
@@ -106,7 +149,11 @@ export function AppSidebar() {
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <div className="text-lg">{selectedCompany.logo}</div>
+            <CompanyLogo 
+              logoUrl={selectedCompany?.logo} 
+              companyName={selectedCompany?.name || ''} 
+              size="sm" 
+            />
           </div>
         )}
         {!selectedCompany && !collapsed && (
@@ -148,7 +195,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/" className={getNavCls}>
+                    <NavLink to="/admin" className={getNavCls}>
                       <Home className="h-4 w-4" />
                       {!collapsed && <span>Configuração</span>}
                     </NavLink>

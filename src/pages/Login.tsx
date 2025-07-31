@@ -74,12 +74,16 @@ export default function Login() {
     
     try {
       await authService.requestPasswordReset(resetEmail);
-      toast.success('Instruções de recuperação enviadas para seu email!');
+      toast.success('Nova senha foi enviada para seu email!');
       setIsResetModalOpen(false);
       setResetEmail('');
-    } catch (error) {
-      // Se o endpoint não existir (404), mostrar mensagem mais amigável
-      toast.info('Entre em contato com o administrador do sistema para redefinir sua senha');
+    } catch (error: any) {
+      console.error('Erro ao resetar senha:', error);
+      if (error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error('Erro ao enviar email de recuperação. Tente novamente.');
+      }
     } finally {
       setIsResetting(false);
     }

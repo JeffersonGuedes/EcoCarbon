@@ -18,7 +18,6 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const navigate = useNavigate();
   const [isDark, setIsDark] = useState(true);
 
-  // Páginas que não devem mostrar a sidebar
   const pagesWithoutSidebar = ['/login', '/companies'];
   const shouldShowSidebar = !pagesWithoutSidebar.includes(location.pathname) && isAuthenticated;
 
